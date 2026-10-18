@@ -112,6 +112,7 @@ end
 
 function Game.update(dt)
     Game.time = Game.time + dt
+    Game.noticeTime = math.max(0, (Game.noticeTime or 0) - dt)
     Draw.update(dt)
     if Game.state ~= "play" then return end
     local w = Game.world
@@ -139,6 +140,25 @@ function Game.update(dt)
     end
 end
 
+-- F5: read levels.ldtk again (after a save in LDtk) and restart the chamber
+-- being played, or stay on the list. A broken file leaves the chambers as they
+-- were and says why on screen, rather than taking the game down mid-edit.
+function Game.reload()
+    local ok, err = pcall(Levels.reload)
+    if ok then
+        Game.notice, Game.noticeKey = ("RELOADED %d CHAMBERS"):format(#Levels), "g"
+        Game.unlocked = math.min(Game.unlocked, #Levels)
+        Game.cursor = math.min(Game.cursor, #Levels)
+        if Game.state == "play" then Game.start(math.min(Game.index, #Levels)) end
+        Sfx.play("ready")
+    else
+        Game.notice, Game.noticeKey = tostring(err):gsub("^.-:%d+: ", ""):upper(), "r"
+        print(err)
+        Sfx.play("fail")
+    end
+    Game.noticeTime = 4
+end
+
 --- keys ----------------------------------------------------------------------------------------
 
 local function menuMove(d)
@@ -150,6 +170,7 @@ local CONFIRM = { ["return"] = true, kpenter = true, space = true, ["/"] = true,
 
 function Game.keypressed(key)
     if key == "tab" then Input.swap(); Sfx.play("tick") end
+    if key == "f5" then Game.reload(); return end
     if Game.state == "title" then
         if key == "escape" then love.event.quit() end
         if key == "up" or key == "w" then menuMove(-1) end
@@ -308,6 +329,20 @@ function Game.draw()
     if Game.state == "title" then drawTitle()
     elseif Game.state == "end" then drawEnd()
     else drawPlay() end
+    if (Game.noticeTime or 0) > 0 then
+        local text = Game.notice
+        -- An error can be long: wrapped at the canvas's width, a line each.
+        local per = math.floor((Game.vw - 8) / Font.ADVANCE)
+        local y = Game.vh - 8
+        local lines = {}
+        for i = 1, #text, per do lines[#lines + 1] = text:sub(i, i + per - 1) end
+        for i = #lines, 1, -1 do
+            P.set("k")
+            love.graphics.rectangle("fill", 0, y - 2, Game.vw, 8)
+            Font.shadow(lines[i], 4, y, Game.noticeKey, P)
+            y = y - 8
+        end
+    end
 end
 
 return Game

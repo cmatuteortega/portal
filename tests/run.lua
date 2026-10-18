@@ -4,6 +4,7 @@
 -- `luajit tests/run.lua levels` runs only files with "levels" in the name.
 
 package.path = "./?.lua;" .. package.path
+require "tests.love"
 
 local only = arg[1]
 local files = {}

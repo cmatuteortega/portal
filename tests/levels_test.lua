@@ -1,6 +1,7 @@
--- Every level, played through to the exit by script under the real rules. If a
--- change to the physics or the maps makes a level unsolvable the way it was
--- meant to be solved, this is where it shows.
+-- Every chamber, played through to the exit by script under the real rules. If
+-- a change to the physics or to levels.ldtk makes a chamber unsolvable the way
+-- it was meant to be solved, this is where it shows. Solutions are keyed by the
+-- chamber's title (its `title` field in LDtk).
 
 local Drive = require "tests.drive"
 local Levels = require "src.levels"
@@ -123,12 +124,22 @@ local solutions = {
     } end,
 }
 
+-- Every chamber must load into a world. One with a solution above must be won
+-- by it; one without (just drawn in LDtk) passes with a note, so designing a
+-- chamber never waits on scripting it -- but a chamber worth keeping gets one.
+local World = require "src.world"
 local tests = { solutions = solutions }
 for i, level in ipairs(Levels) do
-    tests[#tests + 1] = { ("level %d %s is solvable"):format(i, level.name), function()
-        local script = assert(solutions[level.name], "no solution written for " .. level.name)
-        local w = Drive.run(level, script())
-        assert(w.won, "not won")
+    tests[#tests + 1] = { ("chamber %d %s loads"):format(i, level.name), function()
+        World.new(level)
     end }
+    if solutions[level.name] then
+        tests[#tests + 1] = { ("chamber %d %s is solvable"):format(i, level.name), function()
+            local w = Drive.run(level, solutions[level.name]())
+            assert(w.won, "not won")
+        end }
+    else
+        print(("note: chamber %d %s has no scripted solution in tests/levels_test.lua"):format(i, level.name))
+    end
 end
 return tests

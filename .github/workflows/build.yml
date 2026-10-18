@@ -38,7 +38,7 @@ jobs:
       - name: Package game.love
         run: |
           mkdir -p out
-          zip -9 -r out/game.love main.lua conf.lua src -x 'src/shots.lua'
+          zip -9 -r out/game.love main.lua conf.lua levels.ldtk lib src -x 'src/shots.lua'
 
       - name: Fuse with LÖVE for Windows
         run: |

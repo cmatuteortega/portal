@@ -28,6 +28,6 @@ jobs:
       - name: Install LuaJIT
         run: sudo apt-get update -q && sudo apt-get install -y -q luajit
       - name: Syntax
-        run: for f in main.lua conf.lua src/*.lua tests/*.lua; do luajit -bl "$f" > /dev/null || { echo "::error file=$f::does not parse"; exit 1; }; done
+        run: for f in main.lua conf.lua lib/*.lua src/*.lua tests/*.lua; do luajit -bl "$f" > /dev/null || { echo "::error file=$f::does not parse"; exit 1; }; done
       - name: Test
         run: luajit tests/run.lua

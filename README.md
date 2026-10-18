@@ -13,6 +13,9 @@ love . --shots      # dev: plays each chamber's scripted solution part way and
 luajit tests/run.lua    # the tests, no LÖVE needed
 ```
 
+The chambers are drawn in [LDtk](https://ldtk.io): open `levels.ldtk`, edit,
+save, and press **F5** in the game to reload them (see **Designing chambers**).
+
 ![Chamber 5, FLING](docs/fling.png)
 
 ## Controls
@@ -30,7 +33,8 @@ Both robots play on one keyboard, or with gamepads, or a mix.
 With one gamepad it plays Orange; with two, one each. **Tab** (or a pad's Back)
 swaps which robot the two keyboard halves drive, so one person can play both
 robots alone, slowly. **R** restarts the chamber, **Esc** goes back to the
-chamber list, **F11** toggles fullscreen, **M** mutes.
+chamber list, **F11** toggles fullscreen, **M** mutes, **F5** reloads the
+chambers from `levels.ldtk`.
 
 With no direction held, a robot aims the way it faces. The dashed line from
 its gun shows where a shot will land, ending in a lit square if a portal fits
@@ -86,15 +90,17 @@ The rules (`src/world.lua`) are plain Lua with no LÖVE calls in them, stepped a
 a fixed 120Hz. That buys two things. A fling goes the same distance on every
 machine whatever the frame rate. And the whole game runs headless, so
 `tests/levels_test.lua` plays every chamber from spawn to exit with scripted
-inputs. A change to the physics or a map that makes a chamber unsolvable as
-designed fails a test rather than a playtest.
+inputs. A change to the physics or to `levels.ldtk` that makes a chamber
+unsolvable as designed fails a test rather than a playtest.
 
 | File | What it is |
 |---|---|
 | `main.lua` | window, the low-res canvas, the whole-number zoom |
 | `src/game.lua` | the screens (title, play, end), the fixed step, events → sounds and sparks, progress |
 | `src/world.lua` | the rules: tiles, robots, cubes, portals, buttons, doors, the exit |
-| `src/levels.lua` | the six chambers, as 40x22 ASCII maps |
+| `levels.ldtk` | the chambers, drawn in LDtk |
+| `src/levels.lua`, `src/ldtk.lua` | the chamber list (and F5's reload); LDtk → the map the rules play |
+| `lib/` | from buzo: `tilemapper.lua`, `json.lua`, `classic.lua`, unchanged |
 | `src/defs.lua` | every number the rules use |
 | `src/input.lua` | keyboard halves, mouse and gamepads → per-robot input |
 | `src/draw.lua` | paints a world, a whole pixel at a time |
@@ -129,13 +135,57 @@ Movement resolves one axis at a time in steps of at most 3px, so nothing tunnels
 through a one-tile wall even at fling speed, and the portals get first look
 before each axis meets the tiles.
 
-### Adding a chamber
+## Designing chambers
 
-Add a map to `src/levels.lua` (the legend is at the top of `src/world.lua`)
-and a solution to `tests/levels_test.lua`. The test fails until the chamber
-can be played through as you meant it, and `love . --shots` shows it.
+The chambers live in `levels.ldtk`, an [LDtk](https://ldtk.io) 1.5 project. It's
+read with the `tilemapper` from buzo (`lib/tilemapper.lua`, vendored
+unchanged, with its `json.lua` and `classic.lua`). `src/ldtk.lua` turns what
+tilemapper gives back into the map `src/world.lua` plays, so nothing in the
+rules knows about LDtk.
+
+Open `levels.ldtk` in LDtk. Each level is one chamber, and they play in the
+order of LDtk's level list (drag to reorder). A chamber is exactly one screen:
+**320x176 px, 40x22 tiles of 8px**. Two layers:
+
+**Tiles** (IntGrid). Paint what the chamber is made of. Empty is air.
+
+| value | | |
+|---|---|---|
+| 1 `panel` | white | solid, **takes portals** |
+| 2 `metal` | grey | solid, never takes a portal |
+| 3 `goo` | green | kills a robot, dissolves a cube |
+| 4 `grill` | cyan | wipes the portals of a robot walking through, dissolves a carried cube |
+
+**Entities**. Place on the grid. Sizes are in whole tiles.
+
+| entity | what to do |
+|---|---|
+| `Robot1`, `Robot2` | exactly one each: the tile Blue / Orange starts standing in (put it in the air tile just above a floor) |
+| `Button` | in the air tile above a floor; stretch it sideways for a wider plate. `channel` a–e |
+| `Door` | stretch it over the opening. `channel` a–e, the same letter as its buttons. Tick `needs_all` and it opens only while **every** button of that channel is held at once (two robots, or a robot and a cube); otherwise any one will do |
+| `Cube` | a cube's dropper: where a cube appears, and reappears when it's lost |
+| `Exit` | stretch it over the exit. Both robots inside at once finishes the chamber |
+| `Hint` | `text` is painted on the back wall from that tile, in capitals |
+
+Each level also has a `title` field (Level settings → Custom fields): the
+chamber's name in game. Leave it empty and the level's identifier is used.
+
+**The loop:** keep the game running (`love .`, or `love . 7` to go straight to
+chamber 7), save in LDtk, press **F5**. The chamber restarts with your
+changes. If the file has a mistake (no `Robot2`, a chamber the wrong size, a
+channel that isn't a–e), the game keeps the chambers it had and prints what's
+wrong along the bottom of the screen.
+
+**Then a solution.** `luajit tests/run.lua` checks that every chamber loads.
+A chamber with a scripted solution in `tests/levels_test.lua` (keyed by its
+title) is also played to the exit on every push. Until it has one, the tests
+pass with a note naming it. Add the script once the chamber settles: from then
+on, a physics change that breaks the chamber fails CI instead of a playtest.
+Renaming a chamber's `title` means renaming its solution too.
+
+LDtk's own backups are switched off for this project, so git is the history.
 
 ## Not in the MVP
 
-Online play, a level editor, light bridges, lasers, gels, moving platforms,
+Online play, chambers bigger than one screen, light bridges, lasers, gels, moving platforms,
 and portals seen through portals.

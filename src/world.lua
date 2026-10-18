@@ -2,7 +2,10 @@
 -- a fixed step that moves them. Nothing in here touches LÖVE, so the whole game
 -- can be played headless (tests/) exactly as it plays on screen.
 --
--- A level is 40x22 tiles of 8px, written as rows of characters:
+-- A level is 40x22 tiles of 8px, as rows of characters. They are designed in
+-- LDtk (levels.ldtk) and spelled out in this alphabet by src/ldtk.lua, which
+-- keeps the rules free of any editor format; tests build small rooms in it
+-- directly.
 --
 --   .  air              #  white panel: solid, takes portals
 --   X  metal: solid, never takes a portal
