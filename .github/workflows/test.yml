@@ -1,0 +1,33 @@
+# Tests
+#
+# On every push and pull request: a syntax check of every Lua file, then the
+# tests (tests/run.lua) under plain LuaJIT -- the rules one at a time, and every
+# level played through to the exit by its scripted solution. No LÖVE needed:
+# src/world.lua never calls it.
+
+name: Tests
+
+on:
+  push:
+    branches: ['**']
+    paths-ignore:
+      - '**.md'
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install LuaJIT
+        run: sudo apt-get update -q && sudo apt-get install -y -q luajit
+      - name: Syntax
+        run: for f in main.lua conf.lua src/*.lua tests/*.lua; do luajit -bl "$f" > /dev/null || { echo "::error file=$f::does not parse"; exit 1; }; done
+      - name: Test
+        run: luajit tests/run.lua
