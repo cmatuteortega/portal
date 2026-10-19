@@ -48,6 +48,21 @@ return {
         assert(not w:fire(2, 1, 30, 140, 1, 0), "portals overlapped")
     end },
 
+    { "clear takes down your own portals and not your partner's", function()
+        local patch = { [18] = { { 3, "1" }, { 10, "2" } } }
+        for y = 13, 18 do
+            patch[y] = patch[y] or {}
+            table.insert(patch[y], 1, { 0, "#" })
+            table.insert(patch[y], { 39, "#" })
+        end
+        local w = room(patch)
+        assert(w:fire(1, 1, 30, 143, -1, 0) and w:fire(1, 2, 30, 143, 1, 0))
+        assert(w:fire(2, 1, 30, 120, -1, 0))
+        w:update(DT, { { clear = true } })
+        assert(not w.portals[1][1] and not w.portals[1][2], "robot 1's portals survived its clear")
+        assert(w.portals[2][1], "robot 1's clear took robot 2's portal")
+    end },
+
     { "speed in is speed out, wall to wall", function()
         local patch = { [18] = { { 5, "1" }, { 20, "2" } } }
         for y = 13, 18 do

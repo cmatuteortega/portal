@@ -1,6 +1,6 @@
 # Portal Pals
 
-A co-op 2D portal platformer for two robots on one screen, in LÖVE. It's an MVP
+A co-op 2D portal platformer for two robots, on one screen or two machines, in LÖVE. It's an MVP
 in the spirit of Portal 2's co-op: each robot has its own pair of portals,
 either robot can use either pair, and the six test chambers are built so the
 two of you have to work together.
@@ -10,6 +10,8 @@ love .              # LÖVE 11.x
 love . 5            # dev: straight into chamber 5
 love . --shots      # dev: plays each chamber's scripted solution part way and
                     # writes screenshots to the save directory's shots/
+love . --host       # play online as Blue, waiting for a partner
+love . --join localhost   # ...and join it from a second window as Orange
 luajit tests/run.lua    # the tests, no LÖVE needed
 ```
 
@@ -20,7 +22,8 @@ save, and press **F5** in the game to reload them (see **Designing chambers**).
 
 ## Controls
 
-Both robots play on one keyboard, or with gamepads, or a mix.
+Both robots play on one keyboard, or with gamepads, or a mix; or one per machine
+(see **Playing on two machines**).
 
 | | Blue (left hand) | Orange (right hand) | Gamepad |
 |---|---|---|---|
@@ -29,6 +32,7 @@ Both robots play on one keyboard, or with gamepads, or a mix.
 | jump | Space | `/` (or numpad 0, right Ctrl) | A |
 | portal 1 / 2 | Q / E, or left / right click | `,` / `.` (or numpad 1 / 2) | LB / RB (or triggers) |
 | grab / drop a cube | F, or middle click | `;` (or numpad 3) | X or B |
+| take down your portals | C | `'` (or numpad 4) | Y |
 
 With one gamepad it plays Orange; with two, one each. **Tab** (or a pad's Back)
 swaps which robot the two keyboard halves drive, so one person can play both
@@ -36,9 +40,49 @@ robots alone, slowly. **R** restarts the chamber, **Esc** goes back to the
 chamber list, **F11** toggles fullscreen, **M** mutes, **F5** reloads the
 chambers from `levels.ldtk`.
 
+Taking down your portals removes both of your own (never your partner's), wherever
+you are: the way out of a pair you've put somewhere that traps the chamber.
+
 With no direction held, a robot aims the way it faces. The dashed line from
 its gun shows where a shot will land, ending in a lit square if a portal fits
 there and a grey X if it doesn't.
+
+## Playing on two machines
+
+One player hosts and plays **Blue**; the other joins and plays **Orange**. On the
+title screen press **H** to host, or **J** to join and type the host's address
+(a name or IP, `:port` if it isn't the usual 22122). Or from the command line:
+
+```sh
+love . --host               # host, on UDP port 22122
+love . --host --port 23000  # another port
+love . --join 192.168.1.20  # join (`--join` alone joins localhost)
+```
+
+Online, each machine has one robot and the whole of that machine's controls:
+both keyboard halves, the mouse and every gamepad drive it (Tab does nothing).
+The host picks the chambers and keeps the progress; the joiner follows along.
+**R** on either machine restarts the chamber. **Esc** on the joiner leaves; on
+the host it goes to the chamber list, and Esc there stops hosting. If either
+side quits, the other is told within a couple of seconds and carries on alone.
+
+**Testing on one machine:** run `love . --host` and, in a second terminal,
+`love . --join localhost`. Each window drives its own robot from whichever has
+the focus. Add `--mute` to one of them to hear one set of sounds.
+
+Over the internet the host's UDP port 22122 has to be reachable (forwarded on
+the router, or both on a VPN such as Tailscale); on a LAN it just works.
+
+**How it works.** The host's game runs the rules exactly as on one machine.
+The joiner's runs none: it sends its input every frame, and draws the
+snapshots of the host's world that come back (60 a second) and plays the host's
+events as its own sounds and sparks. So the two can never disagree about where
+anything is, at the cost of the joiner's input being a round trip late, which
+on a LAN is a frame or two. Presses are sent as running counts, so a lost packet
+loses no jump. The host sends each chamber whole when it starts, so the two
+machines needn't have the same `levels.ldtk`, and F5 on the host reloads both.
+`src/wire.lua` is the format (and is tested headless); `src/net.lua` carries it
+over ENet, which ships with LÖVE.
 
 ## How it plays
 
@@ -103,12 +147,13 @@ unsolvable as designed fails a test rather than a playtest.
 | `lib/` | from buzo: `tilemapper.lua`, `json.lua`, `classic.lua`, unchanged |
 | `src/defs.lua` | every number the rules use |
 | `src/input.lua` | keyboard halves, mouse and gamepads → per-robot input |
+| `src/net.lua`, `src/wire.lua` | online play: the ENet connection; what goes over it |
 | `src/draw.lua` | paints a world, a whole pixel at a time |
 | `src/sprites.lua` | the robots and the cube, as ASCII art |
 | `src/palette.lua`, `src/font.lua` | the colours, and a 3x5 pixel face |
 | `src/sfx.lua` | every sound, synthesised at load. No sample files |
 | `src/shots.lua` | dev: `--shots` |
-| `tests/` | `run.lua`, the mechanics tests, the chamber playthroughs and their driver |
+| `tests/` | `run.lua`, the mechanics tests, the chamber playthroughs (also with Orange online) and their driver |
 
 ### Rendering
 
@@ -187,5 +232,5 @@ LDtk's own backups are switched off for this project, so git is the history.
 
 ## Not in the MVP
 
-Online play, chambers bigger than one screen, light bridges, lasers, gels, moving platforms,
+Prediction for the joiner's robot (it feels a round trip of lag), more than two players, chambers bigger than one screen, light bridges, lasers, gels, moving platforms,
 and portals seen through portals.

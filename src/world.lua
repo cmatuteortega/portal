@@ -368,8 +368,7 @@ function World:fire(pi, slot, ox, oy, dx, dy)
         return false
     end
     if o then
-        local p = frame({ tx = o[1], ty = o[2], nx = hit.nx, ny = hit.ny, owner = pi, slot = slot, born = self.time })
-        self.portals[pi][slot] = p
+        local p = self:placePortal(pi, slot, o[1], o[2], hit.nx, hit.ny, self.time)
         self:emit("shot", ox, oy, { x1 = hit.x, y1 = hit.y, owner = pi, slot = slot, ok = true })
         self:emit("portal_open", p.cx, p.cy, { owner = pi, slot = slot, nx = p.nx, ny = p.ny })
         return true
@@ -377,6 +376,14 @@ function World:fire(pi, slot, ox, oy, dx, dy)
     self:emit("shot", ox, oy, { x1 = hit.x, y1 = hit.y, owner = pi, slot = slot, ok = false })
     self:emit("portal_fail", hit.x, hit.y, { owner = pi, slot = slot })
     return false
+end
+
+-- Put `slot` of robot `pi` on the face (nx, ny) of tile (tx, ty), no questions
+-- asked: a shot that fits (above), or a copy of the host's world (src/wire.lua).
+function World:placePortal(pi, slot, tx, ty, nx, ny, born)
+    local p = frame({ tx = tx, ty = ty, nx = nx, ny = ny, owner = pi, slot = slot, born = born or self.time })
+    self.portals[pi][slot] = p
+    return p
 end
 
 function World:clearPortals(pi)
@@ -694,6 +701,10 @@ function World:updatePlayer(p, input, dt)
     end
 
     if input.grab then self:grab(p) end
+    -- Taking your own portals down: a pair in the wrong place can trap a
+    -- chamber (a fling that loops, a cube that keeps falling) as surely as a
+    -- grill can rescue it, so you need not walk to one.
+    if input.clear then self:clearPortals(p.id) end
     if p.holding then
         local c = p.holding
         c.x, c.y = holdSpot(p, c)
@@ -743,7 +754,8 @@ end
 
 -- inputs[i] is what robot i is doing this step:
 --   move (-1..1), jump (pressed this step), jumpHeld, aimx, aimy,
---   fire1, fire2 (pressed this step), grab (pressed this step)
+--   fire1, fire2 (pressed this step), grab (pressed this step),
+--   clear (pressed this step: take down this robot's own two portals)
 function World:update(dt, inputs)
     self.time = self.time + dt
     for i, p in ipairs(self.players) do self:updatePlayer(p, inputs[i], dt) end

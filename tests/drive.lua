@@ -118,7 +118,9 @@ end
 
 -- Run a script on a level. Returns the world at the end and the frames it
 -- took; `opts.stopAt` stops it early at that frame (for screenshots). `trace(w)` if given
--- is called every frame (for printing while writing a solution).
+-- is called every frame (for printing while writing a solution). `relay(inputs, w)`
+-- if given replaces each frame's inputs before the step (tests/wire_test.lua
+-- sends one robot's over the wire format).
 function Drive.run(level, script, opts)
     opts = opts or {}
     local w = World.new(level)
@@ -128,6 +130,7 @@ function Drive.run(level, script, opts)
         local inputs = {}
         local ok, done = pcall(script[i], w, inputs)
         if not ok then error(("step %d: %s"):format(i, done), 0) end
+        if opts.relay then inputs = opts.relay(inputs, w) end
         w:update(DT, inputs)
         if w.onAfter then w.onAfter(); w.onAfter = nil end
         if opts.trace then opts.trace(w, i) end

@@ -3,17 +3,23 @@
 -- are two keyboard halves, the mouse, and any number of gamepads, and each is
 -- bound to a robot:
 --
---   left hand:  WASD move and aim, SPACE jump, Q / E portals, F grab
+--   left hand:  WASD move and aim, SPACE jump, Q / E portals, F grab,
+--               C clear your portals
 --               (the mouse aims for this robot too: click left / right for
 --               the portals, middle to grab)
---   right hand: arrows move and aim, / jump, , and . portals, ; grab
---               (or the number pad: 0 jump, 1 / 2 portals, 3 grab)
+--   right hand: arrows move and aim, / jump, , and . portals, ; grab,
+--               ' clear (or the number pad: 0 jump, 1 / 2 portals, 3 grab,
+--               4 clear)
 --   gamepad:    left stick / d-pad move, right stick aims (the left stick does
---               if the right is idle), A jump, LB / RB portals, X or B grab
+--               if the right is idle), A jump, LB / RB portals, X or B grab,
+--               Y clear
 --
 -- With one pad it plays the right hand's robot; with two, one each. TAB (or a
 -- pad's BACK) swaps which robot the halves drive -- that is how one person
 -- plays both, which every co-op puzzle here allows, if slowly.
+--
+-- Played across two machines (src/net.lua) each machine has one robot, and
+-- Input.solo hands it everything: both halves, the mouse and every pad.
 --
 -- Aim is a direction, not a point: the keys give eight, a stick or the mouse
 -- any. With nothing held a robot aims the way it faces.
@@ -27,19 +33,22 @@ local Input = {}
 local KEYS = {
     {
         left = { "a" }, right = { "d" }, up = { "w" }, down = { "s" },
-        jump = { "space" }, fire1 = { "q" }, fire2 = { "e" }, grab = { "f" },
+        jump = { "space" }, fire1 = { "q" }, fire2 = { "e" }, grab = { "f" }, clear = { "c" },
     },
     {
         left = { "left" }, right = { "right" }, up = { "up" }, down = { "down" },
         jump = { "/", "kp0", "rctrl" }, fire1 = { ",", "kp1" }, fire2 = { ".", "kp2" }, grab = { ";", "kp3" },
+        clear = { "'", "kp4" },
     },
 }
 Input.KEYS = KEYS
 
-local EDGES = { "jump", "fire1", "fire2", "grab" }
+local EDGES = { "jump", "fire1", "fire2", "grab", "clear" }
 
 -- Which robot each keyboard half (and the mouse, with half 1) drives.
 Input.owner = { 1, 2 }
+-- The one robot everything drives, when this machine has only one.
+Input.only = nil
 
 local latched = { {}, {} }
 local mouse = { x = 0, y = 0, until_ = -1, buttons = {} }
@@ -53,7 +62,15 @@ local function down(list)
 end
 
 function Input.swap()
+    if Input.only then return end
     Input.owner[1], Input.owner[2] = Input.owner[2], Input.owner[1]
+end
+
+-- Everything drives robot `robot`; nil goes back to a half each.
+function Input.solo(robot)
+    Input.only = robot
+    Input.owner = robot and { robot, robot } or { 1, 2 }
+    Input.clear()
 end
 
 function Input.keypressed(key)
@@ -89,6 +106,7 @@ local function pads()
 end
 
 local function padRobot(i, count)
+    if Input.only then return Input.only end
     if count >= 2 then return i <= 2 and i or nil end
     return Input.owner[2]
 end
@@ -99,7 +117,7 @@ function Input.gamepadpressed(joystick, button)
         if j == joystick then
             local robot = padRobot(i, #list)
             if not robot then return end
-            local name = ({ a = "jump", leftshoulder = "fire1", rightshoulder = "fire2", x = "grab", b = "grab" })[button]
+            local name = ({ a = "jump", leftshoulder = "fire1", rightshoulder = "fire2", x = "grab", b = "grab", y = "clear" })[button]
             if name then latched[robot][name] = true end
             if button == "back" then Input.swap() end
         end
